@@ -1,6 +1,11 @@
 ---
-title: "Assignment #1"
-format: html
+title: "Tutorial 1" 
+format: html 
+editor: visual 
+execute-dir: project
+knitr:
+  opts_chunk:
+    engine.path: "C:/Program Files/Git/usr/bin/bash.exe"
 ---
 
 ## Assignment 1
@@ -17,95 +22,239 @@ You will need to install PLINK and run the analyses. Please follow the OS-specif
 
 Before fitting any models, it is essential to understand the data. Use R or bash code to answer the following questions about the `gwa.qc.A1.fam`, `gwa.qc.A1.bim`, and `gwa.qc.A1.bed` files, available at the following Google Drive link: <https://drive.google.com/drive/folders/11meVqGCY5yAyI1fh-fAlMEXQt0VmRGuz?usp=drive_link>. Please download all three files from this link and place them in `02_activities/data/`.
 
+First I am creating a directory to extract the assignment data into
+```{bash}
+cd /c/Users/zacha/gen_data
+
+pwd # gen_data
+
+# mkdir ./02_activities/data/assignment_1_data
+
+```
+
+
+Fixing an R chunk-specific working directory pathing issue
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = normalizePath("../../"))
+```
+Now I am going to load all necessary R libraries
+
+```{r, message=FALSE, warning=FALSE, results='hide'}
+library(data.table)
+library(ggplot2)
+library(dplyr)
+library(seqminer)
+library(HardyWeinberg)
+
+```
+
 (i) Read the .fam file. How many samples does the dataset contain?
+```{bash, results='hide',message=FALSE, warning=FALSE}
+cd /c/Users/zacha/gen_data
+wc -l ./02_activities/data/assignment_1_data/gwa.qc.A1.fam # 4000
 
 ```         
-# Your answer here...
-```
+
+4000 samples
 
 (ii) What is the 'variable type' of the response variable (i.e.Continuous or binary)?
+```{bash, results='hide',message=FALSE, warning=FALSE}
+cd /c/Users/zacha/gen_data
+
+head ./02_activities/data/assignment_1_data/gwa.qc.A1.fam
 
 ```         
-# Your answer here...
-```
+
+Continuous
 
 (iii) Read the .bim file. How many SNPs does the dataset contain?
+```{bash, results='hide',message=FALSE, warning=FALSE}
+cd /c/Users/zacha/gen_data
+head ./02_activities/data/assignment_1_data/gwa.qc.A1.bim
+
+wc -l ./02_activities/data/assignment_1_data/gwa.qc.A1.bim # 101083
 
 ```         
-# Your answer here...
-```
+
+101083 SNPs
 
 #### Question 2: Allele Frequency Estimation
 
 (i) Load the genotype matrix for SNPs rs1861, rs3813199, rs3128342, and rs11804831 using additive coding. What are the allele frequencies (AFs) for these four SNPs?
 
-```         
-# Your code here...
+Creating the genotype matrix
+```{bash, results='hide',message=FALSE, warning=FALSE}
+cd /c/Users/zacha/gen_data
+
+"/c/Program Files (x86)/PLINK/plink2" --bfile ./02_activities/data/assignment_1_data/gwa.qc.A1 \
+      --extract ./02_activities/data/assignment_1_data/snplist.txt \
+      --export A \
+      --out ./02_activities/data/assignment_1_data/geno.additive
 ```
 
-(ii) What are the minor allele frequencies (MAFs) for these four SNPs?
+Examining matrix in R to confirm --bfile worked as expected
+```{r, message=FALSE, warning=FALSE}
+# Load genotype data
 
-```         
-# Your code here...
+geno <- fread("./02_activities/data/assignment_1_data/geno.additive.raw")
+geno[1:5, 1:10]
+
 ```
+
+Calculating allele frequencies
+```{bash, results='hide',message=FALSE, warning=FALSE}
+cd /c/Users/zacha/gen_data
+"/c/Program Files (x86)/PLINK/plink2" --bfile ./02_activities/data/assignment_1_data/gwa.qc.A1 --freq \
+      --extract ./02_activities/data/assignment_1_data/snplist.txt \
+      --out ./02_activities/data/assignment_1_data/geno_freq
+```
+
+Examine allele freqencies
+```{r, message=FALSE, warning=FALSE}
+freq <- fread("./02_activities/data/assignment_1_data/geno_freq.afreq")
+head(freq)
+
+# Calculating allele frequencies
+
+freq <- freq %>%
+    mutate(ref_freq = 1-ALT_FREQS)
+
+freq
+```
+
+rs3813199_G = 0.9430874
+rs11804831_T = 0.8456590
+rs3128342_C = 0.6948790
+rs1861_C = 0.9460141
+
+(ii) What are the minor allele frequencies (MAFs) for these four SNPs? 
+
+The code for this was completed in the previous chunks
+
+rs3813199_A = 0.0569126
+rs11804831_C = 0.1543410
+rs3128342_A = 0.3051210
+rs1861_A = 0.0539859
 
 #### Question 3: Hardy–Weinberg Equilibrium (HWE) Test
 
 (i) Conduct the Hardy–Weinberg Equilibrium (HWE) test for all SNPs in the .bim file. Then, load the file containing the HWE p-value results and display the first few rows of the resulting data frame.
 
-```         
-# Your code here...
+Running the HWE test
+```{bash, results='hide',message=FALSE, warning=FALSE}  
+cd /c/Users/zacha/gen_data
+"/c/Program Files (x86)/PLINK/plink2" --bfile ./02_activities/data/assignment_1_data/gwa.qc.A1 \
+      --hardy \
+      --out ./02_activities/data/assignment_1_data/gwa_qc_hwe
+```
+
+Now displaying the first few rows in R
+
+```{r, message=FALSE, warning=FALSE}
+hwe <- fread("./02_activities/data/assignment_1_data/gwa_qc_hwe.hardy")
+head(hwe)
+
 ```
 
 (ii) What are the HWE p-values for SNPs rs1861, rs3813199, rs3128342, and rs11804831?
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}
+snp_list <- c("rs1861", "rs3813199", "rs3128342", "rs11804831")
+
+hwe[hwe$ID %in% snp_list, c(2, 10)]
+
 ```
+
+rs1861, p = 0.274719
+rs3813199, p = 1.000000
+rs3128342, p = 0.330273
+rs11804831, p = 0.113354
 
 #### Question 4: Genetic Association Test
 
 (i) Conduct a linear regression to test the association between SNP rs1861 and the phenotype. What is the p-value?
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}      
+# Examine the SNP. The major allele is C
+table(geno$rs1861_C)
+freq[freq$ID == 'rs1861']
+
+# Fit the linear regression model
+
+model <- glm(PHENOTYPE ~ rs1861_C, data = geno)
+summary(model)
+model
+
 ```
+
+The p value is <2.2e-16
 
 (ii) How would you interpret the beta coefficient from this regression?
 
-```         
-# Your answer here...
+```{r, message=FALSE, warning=FALSE}
+coefficients(model)
+
 ```
+
+beta = 0.97382409
+
+Phenotype increases with more copies of the rs1861_C allele 
 
 (iii) Plot the scatterplot of phenotype versus the genotype of SNP rs1861. Add the regression line to the plot.
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}
+p1 <- ggplot(geno, aes(x = rs1861_C, y = PHENOTYPE)) +
+  geom_point(width = 0.1, alpha = 0.2, color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE, linewidth = 1.2) +
+  labs(title = "Linear Regression: PHENOTYPE ~ Genotype (Additive)",
+       x = "Genotype (0/1/2)", y = "Phenotype") +
+  theme_minimal()
+
+print(p1)
+
 ```
 
 (iv) Convert the genotype coding for rs1861 to recessive coding.
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}
+geno_rec <- geno  # make a copy
+geno_rec[, 7:ncol(geno_rec)] <- as.data.frame(
+  lapply(geno[, 7:ncol(geno)], function(x) ifelse(x == 2, 1, 0))
+)
 ```
 
 (v) Conduct a linear regression to test the association between the recessive-coded rs1861 and the phenotype. What is the p-value?
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}
+table(geno_rec$rs1861_C)
+
+# Fit the linear regression model
+
+model_rec <- glm(PHENOTYPE ~ rs1861_C, data = geno_rec)
+summary(model_rec)
+model_rec         
 ```
+
+p = <2.2e-16
 
 (vi) Plot the scatterplot of phenotype versus the recessive-coded genotype of rs1861. Add the regression line to the plot.
 
-```         
-# Your code here...
+```{r, message=FALSE, warning=FALSE}
+
+p2 <- ggplot(geno_rec, aes(x = rs1861_C, y = PHENOTYPE)) +
+  geom_point(width = 0.05, alpha = 0.2, color = "blue") +
+  geom_smooth(method = "lm", color = "red", se = FALSE, linewidth = 1.2) +
+  labs(title = "Linear Regression: PHENOTYPE ~ Genotype (Recessive)",
+       x = "Genotype (0/1)", y = "Phenotype") +
+  theme_minimal()
+
+print(p2)
+
 ```
 
 (vii) Which model fits better? Justify your answer.
 
-```         
-# Your answer here...
-```
+The additive model fits better as it has a lower AIC (11277) compared to the recessive model (11292). However, the magnitude of the difference in AIC is quite small, indicating that the additive model fits only marginally better.
 
 ### Criteria
 
